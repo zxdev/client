@@ -63,7 +63,7 @@ type DNS struct {
 	Domain []string `json:"domain,omitempty"` // rDNS resolution target
 }
 
-func (j *DNS) Okay() bool      { return j.RCode != 0 }
+func (j *DNS) Okay() bool      { return j.Status == 0 }
 func (j *DNS) Request() string { return j.Host }
 func (j *DNS) Unpack() any     { return *j }
 
