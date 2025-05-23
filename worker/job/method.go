@@ -10,6 +10,9 @@ const (
 	DELETE
 	TRACE
 	CONNECT
+
+	// OPTIONS is used directly and only for setting supported
+// methods when it is supported
 )
 
 //
@@ -30,6 +33,12 @@ type Method struct {
 func (j *Method) Okay() bool      { return j.Status == 0 }
 func (j *Method) Request() string { return j.Url }
 func (j *Method) Unpack() any     { return *j }
+
+// MethodStandard reports head,get,post and their combinations as valid for the Standard group
+func MethodStandard(flag *int) bool {
+	// head,get,post combined 1|2|3 =7 will always be less than the put flag 8
+	return *flag < PUT
+}
 
 // MethodDecoder returns textual representation of the method flags;
 // pass nil option will always ingore reporting the OPTION verb
