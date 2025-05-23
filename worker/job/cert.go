@@ -50,7 +50,7 @@ type certificate struct {
 	IssuerCaId     int    `json:"issuer_ca_id,omitempty"`    // 286236
 	IssuerName     string `json:"issuer_name,omitempty"`     // "C=US, O=Google Trust Services, CN=WE1"
 	CommonName     string `json:"common_name,omitempty"`     // zxdev.com
-	NameValue      string `json:"name_value,omitempty"`      // zxdev.com\n*zxdev.com; conver to []string
+	NameValue      string `json:"name_value,omitempty"`      // zxdev.com\n*zxdev.com; convert to []string
 	EntryTimestamp string `json:"entry_timestamp,omitempty"` // RFC3339; convert to unix timestamp
 	NotBefore      string `json:"not_before,omitempty"`      // RFC3339; convert to unix timestamp
 	NotAfter       string `json:"not_after,omitempty"`       // RFC3339; convert to unix timestamp
@@ -58,19 +58,20 @@ type certificate struct {
 	ResultCount    int    `json:"result_count,omitempty"`    // 3; = CommonName + NameValue
 }
 
-// NameValues parses c.NameValue into a slice
-func (c *certificate) NameValues(n string) []string { return strings.Split(c.NameValue, "\n") }
+const (
+	tsFormat = "2006-01-02T15:04:05"
+)
 
-// EntryUnix parses c.EntryTimestamp into a unix timestamp
-func (c *certificate) EntryUnix() int64 { return c.unix(c.EntryTimestamp) }
+// CertificateNameValues parses c.NameValue into a slice
+func CertificateNameValues(c *certificate) []string { return strings.Split(c.NameValue, "\n") }
 
-// NotBeforeUnix parses c.NotBefore into a unix timestamp
-func (c *certificate) NotBeforeUnix() int64 { return c.unix(c.NotBefore) }
-
-// NotAfterUnix parse c.NotAfter into a unix timestamp
-func (c *certificate) NotAfterUnix() int64 { return c.unix(c.NotAfter) }
-
-func (c *certificate) unix(a string) int64 {
-	ts, _ := time.Parse("2006-01-02T15:04:05", a)
-	return ts.UTC().Unix()
+// CertificateTimestamps returns c.EntryTimestamp, c.NotBefore, and c.NotAfter as unix timestamps
+func CertificateTimestamps(c *certificate) (entry, notBefore, notAfter int64) {
+	ts, _ := time.Parse(tsFormat, c.EntryTimestamp)
+	entry = ts.UTC().Unix()
+	ts, _ = time.Parse(tsFormat, c.NotBefore)
+	notBefore = ts.UTC().Unix()
+	ts, _ = time.Parse(tsFormat, c.NotAfter)
+	notAfter = ts.UTC().Unix()
+	return
 }

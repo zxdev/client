@@ -47,11 +47,9 @@ func (j *Hval) Okay() bool      { return j.Status == 0 }
 func (j *Hval) Request() string { return j.Item }
 func (j *Hval) Unpack() any     { return *j }
 
-// Standard
-//
-//	reports true on minimal valid security combinations of HSTS,CSP
-func Standard(security *int) bool {
-	// hscs, csp combined 1+2 will alwasy be less than the XCTO flag 4
+// SecurityBasic reports true on the minimal valid security combinations of HSTS,CSP
+func SecurityBasic(security *int) bool {
+	// HSTS|CSP combined 1|2 = 3 will always be less than XCTO flag 4
 	return *security < XCTO
 }
 

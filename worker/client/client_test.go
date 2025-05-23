@@ -344,7 +344,8 @@ func TestCERT(t *testing.T) {
 				if len(r.Certificate) == 0 {
 					t.Log(r.Host, len(r.Certificate))
 				} else {
-					t.Log(r.Host, len(r.Certificate), r.Certificate[0].CommonName, r.Certificate[0].NotBeforeUnix(), r.Certificate[0].NotAfterUnix())
+					entry, notBefore, notAfter := job.CertificateTimestamps(&r.Certificate[0])
+					t.Log(r.Host, entry, notBefore, notAfter)
 				}
 			}
 		}

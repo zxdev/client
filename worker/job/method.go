@@ -1,5 +1,17 @@
 package job
 
+const (
+	// method verb flags
+	HEAD = 1 << iota
+	GET
+	POST
+	PUT
+	PATCH
+	DELETE
+	TRACE
+	CONNECT
+)
+
 //
 // job method
 //  support client.Job interface
@@ -18,3 +30,39 @@ type Method struct {
 func (j *Method) Okay() bool      { return j.Status == 0 }
 func (j *Method) Request() string { return j.Url }
 func (j *Method) Unpack() any     { return *j }
+
+// MethodDecoder returns textual representation of the method flags;
+// pass nil option will always ingore reporting the OPTION verb
+func MethodDecoder(flag *int, option *bool) (text []string) {
+	if *flag&HEAD > 0 {
+		text = append(text, "HEAD")
+	}
+	if *flag&GET > 0 {
+		text = append(text, "GET")
+	}
+	if *flag&POST > 0 {
+		text = append(text, "POST")
+	}
+	if *flag&PUT > 0 {
+		text = append(text, "PUT")
+	}
+	if *flag&PATCH > 0 {
+		text = append(text, "PATCH")
+	}
+	if *flag&DELETE > 0 {
+		text = append(text, "DELETE")
+	}
+	if *flag&TRACE > 0 {
+		text = append(text, "TRACE")
+	}
+
+	if option != nil && *option {
+		text = append(text, "OPTION")
+	}
+
+	if *flag&CONNECT > 0 {
+		text = append(text, "CONNECT")
+	}
+
+	return
+}
