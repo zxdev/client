@@ -12,7 +12,7 @@ const (
 	CONNECT
 
 	// OPTIONS is used directly and only for setting supported
-// methods when it is supported
+	// methods when it is supported
 )
 
 //
