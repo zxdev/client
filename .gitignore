@@ -1,0 +1,8 @@
+
+# remove from everywhere
+**/.DS_Store
+**/~*
+
+# ignore directories
+_dev/
+sandbox/
