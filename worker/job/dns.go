@@ -51,6 +51,7 @@ func NewDNS(a string) *DNS { return &DNS{Host: a} }
 //	128 DOMAIN
 type DNS struct {
 	UUID   uint64   `json:"uuid,omitempty"`   // unique job tracking id
+	Status int      `json:"status,omitempty"` // status of request
 	RCode  int      `json:"rcode,omitempty"`  // resolution request/response flags
 	Host   string   `json:"host,omitempty"`   // host request
 	A      []string `json:"a,omitempty"`      // A records
