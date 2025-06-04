@@ -69,6 +69,9 @@ const (
 
 )
 
+// NewMail is the Mail job configurator
+func NewMail(host string) *Mail { return &Mail{Host: host} }
+
 // Mail struct for detecting the host mail configuration
 type Mail struct {
 	UUID   uint64   `json:"uuid,omitempty"`   // unique job tracking id
