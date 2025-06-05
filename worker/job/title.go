@@ -12,7 +12,7 @@ type Title struct {
 	Status int    `json:"status,omitempty"` // request status
 	Url    string `json:"url,omitempty"`    // target url or host
 	Title  string `json:"title,omitempty"`  // title extraction
-	Hash   int    `json:"hash,omitempty"`   // hash of title
+	Hash   uint64 `json:"hash,omitempty"`   // hash of title
 }
 
 func (j *Title) Okay() bool      { return j.Status == 0 }
