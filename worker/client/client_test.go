@@ -14,8 +14,8 @@ var (
 	// HOST and SECRET value; these are normally loaded
 	// via env.Conf(&work,path) from the resouce file
 
-	host   = "http://localhost:1455"            // requires localhost server instance runnning
-	secret = "OOIPTYIG6NZ4BMCRLKNPC54XYQ4UZ3W4" // required but is ignored by localhost server
+	host   = "http://wrk.netstar.dev:1455"      // requires localhost server instance runnning
+	secret = "NETSTARXNETSTARXXNETSTARXNETSTAR" // required but is ignored by localhost server
 )
 
 /*
@@ -341,11 +341,19 @@ func TestCERT(t *testing.T) {
 		for j := range work.Outbox {
 			if j.Okay() {
 				r := j.Unpack().(job.Cert)
-				if len(r.Certificate) == 0 {
-					t.Log(r.Host, len(r.Certificate))
-				} else {
-					entry, notBefore, notAfter := job.CertificateTimestamps(&r.Certificate[0])
-					t.Log(r.Host, entry, notBefore, notAfter)
+				if r.Connection != nil {
+					t.Log(r.Host, r.Connection.TLSVersion, r.Connection.CipherSuite)
+				}
+				if r.Verification != nil {
+					t.Log("Hostname matches:", r.Verification.HostnameMatches,
+						"Chain verified:", r.Verification.ChainVerified,
+						"Self-signed:", r.Verification.SubjectEqualsIssuer,
+						"Weak crypto:", r.Verification.WeakCrypto)
+				}
+				if len(r.Certs) > 0 {
+					cert := r.Certs[0]
+					t.Log("Leaf cert:", cert.SubjectCN, "Issuer:", cert.IssuerCN,
+						"Valid from:", cert.NotBefore, "to:", cert.NotAfter)
 				}
 			}
 		}
