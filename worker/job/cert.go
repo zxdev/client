@@ -1,77 +1,157 @@
 package job
 
-import (
-	"strings"
-	"time"
-)
-
 //
 // cert
 //  support client.Job
 //
-
-/*
-
-[
-    {
-      "issuer_ca_id": 286236,
-      "issuer_name": "C=US, O=Google Trust Services, CN=WE1",
-      "common_name": "zxdev.com",
-      "name_value": "*.zxdev.com\nzxdev.com",
-      "id": 13489789012,
-      "entry_timestamp": "2024-06-23T13:12:25.328",
-      "not_before": "2024-06-23T12:12:24",
-      "not_after": "2024-09-21T12:12:23",
-      "serial_number": "474dec9ce6330ac613470f3474b728e0",
-      "result_count": 3
-	},
-	...
-]
-*/
+// The cert worker performs TLS handshake and comprehensive certificate analysis,
+// returning metadata (not scores) that students can use to build their own scoring systems.
+//
+// Request format (POST /cert):
+//   - Simple: "example.com" or {"host": "example.com"} - returns basic checks only
+//   - With options: {"host": "example.com", "port": 443, "options": {"include_ocsp": true, "include_disallowed_root": true}}
+//     - include_ocsp: perform OCSP revocation check (network call, slower)
+//     - include_disallowed_root: check root CA against disallowed list (file load, slower)
+//
+// Example output:
+//
+// {
+//   "host": "example.com",
+//   "port": 443,
+//   "timestamp": "2025-01-15T10:30:00Z",
+//   "connection": {
+//     "tls_version": "TLS 1.3",
+//     "cipher_suite": "TLS_AES_128_GCM_SHA256"
+//   },
+//   "verification": {
+//     "hostname_checked": "example.com",
+//     "hostname_matches": true,
+//     "chain_verified": true,
+//     "chain_verify_error": "",
+//     "chain_length": 3,
+//     "subject_equals_issuer": false,
+//     "self_signature_verifies": false,
+//     "weak_crypto": false,
+//     "validity_risk": false,
+//     "incomplete_chain": false,
+//     "ocsp_checked": true,
+//     "ocsp_status": "good",
+//     "root_in_disallowed_list": false
+//   },
+//   "certs": [
+//     {
+//       "position": 0,
+//       "role": "leaf",
+//       "subject_cn": "example.com",
+//       "subject_dns_names": ["example.com", "www.example.com"],
+//       "issuer_cn": "R3",
+//       "not_before": "2025-10-01T00:00:00Z",
+//       "not_after": "2026-01-01T00:00:00Z",
+//       "public_key_algorithm": "RSA",
+//       "public_key_size_bits": 2048,
+//       "signature_algorithm": "SHA256-RSA",
+//       "is_ca": false,
+//       "serial_number": "..."
+//     },
+//     {
+//       "position": 1,
+//       "role": "intermediate",
+//       "subject_cn": "R3",
+//       "issuer_cn": "ISRG Root X1",
+//       "is_ca": true
+//     }
+//   ]
+// }
+//
 
 // NewCert is the job.Cert configurator
 func NewCert(a string) *Cert { return &Cert{Host: a} }
 
-// worker cert struct
+// CertJob is the request struct for POST /cert with optional expensive checks
+// Example request:
+//
+//	{
+//	  "host": "example.com",
+//	  "port": 443,
+//	  "options": {
+//	    "include_ocsp": true,
+//	    "include_disallowed_root": true
+//	  }
+//	}
+type CertJob struct {
+	Host    string       `json:"host"`              // hostname or hostname:port
+	Port    int          `json:"port,omitempty"`    // port number (defaults to 443)
+	Options *CertOptions `json:"options,omitempty"` // optional expensive checks
+}
+
+// CertOptions controls which expensive/optional checks are performed
+// All basic checks (connection info, chain, hostname, weak crypto, etc.) are always included.
+// Only OCSP and disallowed root checks are optional and require explicit opt-in.
+type CertOptions struct {
+	IncludeOCSP           bool `json:"include_ocsp,omitempty"`            // perform OCSP revocation check (network call)
+	IncludeDisallowedRoot bool `json:"include_disallowed_root,omitempty"` // check root CA against disallowed list (file load)
+}
+
+// Cert is the worker cert struct for TLS handshake and certificate analysis
 type Cert struct {
-	UUID        uint64        `json:"uuid,omitempty"`   // unique job tracking id
-	Status      int           `json:"status,omitempty"` // status of request
-	Host        string        `json:"host,omitempty"`   // zxdev.com; request
-	Certificate []certificate `json:"data,omitempty"`
+	UUID      uint64 `json:"uuid,omitempty"`      // unique job tracking id
+	Status    int    `json:"status,omitempty"`    // HTTP-like status: 0 = ok, nonzero = error (connection failed, invalid host, etc.)
+	Host      string `json:"host,omitempty"`      // hostname or hostname:port
+	Port      int    `json:"port,omitempty"`      // port number (defaults to 443)
+	Timestamp string `json:"timestamp,omitempty"` // RFC3339 timestamp of when this measurement was taken
+
+	Connection   *ConnectionInfo   `json:"connection,omitempty"`   // TLS connection details
+	Verification *VerificationInfo `json:"verification,omitempty"` // certificate verification metadata
+	Certs        []CertificateInfo `json:"certs,omitempty"`        // certificate chain (leaf + intermediates)
 }
 
 func (j *Cert) Okay() bool      { return j.Status == 0 }
 func (j *Cert) Request() string { return j.Host }
 func (j *Cert) Unpack() any     { return *j }
 
-// worker response certificate record
-type certificate struct {
-	ID             uint64 `json:"id,omitempty"`              // 13489789012; crt.sh database ID
-	IssuerCaId     int    `json:"issuer_ca_id,omitempty"`    // 286236
-	IssuerName     string `json:"issuer_name,omitempty"`     // "C=US, O=Google Trust Services, CN=WE1"
-	CommonName     string `json:"common_name,omitempty"`     // zxdev.com
-	NameValue      string `json:"name_value,omitempty"`      // zxdev.com\n*zxdev.com; convert to []string
-	EntryTimestamp string `json:"entry_timestamp,omitempty"` // RFC3339; convert to unix timestamp
-	NotBefore      string `json:"not_before,omitempty"`      // RFC3339; convert to unix timestamp
-	NotAfter       string `json:"not_after,omitempty"`       // RFC3339; convert to unix timestamp
-	SerialNumber   string `json:"serial_number,omitempty"`   // 474dec9ce6330ac613470f3474b728e0
-	ResultCount    int    `json:"result_count,omitempty"`    // 3; = CommonName + NameValue
+// ConnectionInfo contains TLS connection metadata
+type ConnectionInfo struct {
+	TLSVersion  string `json:"tls_version,omitempty"`  // e.g., "TLS 1.3"
+	CipherSuite string `json:"cipher_suite,omitempty"` // e.g., "TLS_AES_128_GCM_SHA256"
 }
 
-const (
-	tsFormat = "2006-01-02T15:04:05"
-)
+// VerificationInfo contains certificate verification metadata (no scoring, just flags)
+//
+// Data tiers:
+//   - Always included (cheap): HostnameChecked, HostnameMatches, ChainVerified, ChainVerifyError,
+//     ChainLength, SubjectEqualsIssuer, SelfSignatureVerifies, WeakCrypto, ValidityRisk, IncompleteChain
+//   - Optional/expensive (requires options): OCSPChecked, OCSPStatus, RootInDisallowedList
+type VerificationInfo struct {
+	// Basic checks (always included)
+	HostnameChecked       string `json:"hostname_checked,omitempty"`        // hostname used for verification
+	HostnameMatches       bool   `json:"hostname_matches,omitempty"`        // true if certificate matches hostname
+	ChainVerified         bool   `json:"chain_verified,omitempty"`          // true if chain verified successfully
+	ChainVerifyError      string `json:"chain_verify_error,omitempty"`      // error string or "" if ChainVerified == true
+	ChainLength           int    `json:"chain_length,omitempty"`            // number of certificates in chain
+	SubjectEqualsIssuer   bool   `json:"subject_equals_issuer,omitempty"`   // true if subject == issuer (self-signed indicator)
+	SelfSignatureVerifies bool   `json:"self_signature_verifies,omitempty"` // true if cert is cryptographically self-signed
+	WeakCrypto            bool   `json:"weak_crypto,omitempty"`             // true if uses weak algorithms (SHA1, MD5, etc.)
+	ValidityRisk          bool   `json:"validity_risk,omitempty"`           // true if unusual validity period (<7d or >825d)
+	IncompleteChain       bool   `json:"incomplete_chain,omitempty"`        // true if chain is incomplete
 
-// CertificateNameValues parses c.NameValue into a slice
-func CertificateNameValues(c *certificate) []string { return strings.Split(c.NameValue, "\n") }
+	// Optional/expensive checks (only populated if requested via CertOptions)
+	OCSPChecked          bool   `json:"ocsp_checked,omitempty"`            // true if OCSP check was attempted (requires include_ocsp option)
+	OCSPStatus           string `json:"ocsp_status,omitempty"`             // "good" | "revoked" | "unknown" | "error" | "" (requires include_ocsp option)
+	RootInDisallowedList bool   `json:"root_in_disallowed_list,omitempty"` // true if root CA is in disallowed list (requires include_disallowed_root option)
+}
 
-// CertificateTimestamps returns c.EntryTimestamp, c.NotBefore, and c.NotAfter as unix timestamps
-func CertificateTimestamps(c *certificate) (entry, notBefore, notAfter int64) {
-	ts, _ := time.Parse(tsFormat, c.EntryTimestamp)
-	entry = ts.UTC().Unix()
-	ts, _ = time.Parse(tsFormat, c.NotBefore)
-	notBefore = ts.UTC().Unix()
-	ts, _ = time.Parse(tsFormat, c.NotAfter)
-	notAfter = ts.UTC().Unix()
-	return
+// CertificateInfo contains details for a single certificate in the chain
+type CertificateInfo struct {
+	Position           int      `json:"position,omitempty"`             // position in chain (0 = leaf)
+	Role               string   `json:"role,omitempty"`                 // "leaf" | "intermediate" | "root"
+	SubjectCN          string   `json:"subject_cn,omitempty"`           // subject common name
+	SubjectDNSNames    []string `json:"subject_dns_names,omitempty"`    // subject alternative names
+	IssuerCN           string   `json:"issuer_cn,omitempty"`            // issuer common name
+	NotBefore          string   `json:"not_before,omitempty"`           // RFC3339
+	NotAfter           string   `json:"not_after,omitempty"`            // RFC3339
+	PublicKeyAlgorithm string   `json:"public_key_algorithm,omitempty"` // e.g., "RSA", "ECDSA"
+	PublicKeySizeBits  int      `json:"public_key_size_bits,omitempty"` // key size in bits
+	SignatureAlgorithm string   `json:"signature_algorithm,omitempty"`  // e.g., "SHA256-RSA"
+	IsCA               bool     `json:"is_ca,omitempty"`                // true if this is a CA certificate
+	SerialNumber       string   `json:"serial_number,omitempty"`        // certificate serial number
 }
