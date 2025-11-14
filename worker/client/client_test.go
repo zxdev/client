@@ -341,19 +341,39 @@ func TestCERT(t *testing.T) {
 		for j := range work.Outbox {
 			if j.Okay() {
 				r := j.Unpack().(job.Cert)
+
+				// Log key fields for quick verification
 				if r.Connection != nil {
-					t.Log(r.Host, r.Connection.TLSVersion, r.Connection.CipherSuite)
+					t.Logf("Connection: TLS %s, Cipher: %s", r.Connection.TLSVersion, r.Connection.CipherSuite)
 				}
 				if r.Verification != nil {
-					t.Log("Hostname matches:", r.Verification.HostnameMatches,
-						"Chain verified:", r.Verification.ChainVerified,
-						"Self-signed:", r.Verification.SubjectEqualsIssuer,
-						"Weak crypto:", r.Verification.WeakCrypto)
+					t.Logf("Verification: HostnameMatch=%v, ChainVerified=%v, SelfSigned=%v, WeakCrypto=%v, ChainLength=%d",
+						r.Verification.HostnameMatches, r.Verification.ChainVerified,
+						r.Verification.SubjectEqualsIssuer, r.Verification.WeakCrypto, r.Verification.ChainLength)
 				}
 				if len(r.Certs) > 0 {
 					cert := r.Certs[0]
-					t.Log("Leaf cert:", cert.SubjectCN, "Issuer:", cert.IssuerCN,
-						"Valid from:", cert.NotBefore, "to:", cert.NotAfter)
+					t.Logf("Leaf Cert: %s (Issuer: %s) Valid: %s to %s",
+						cert.SubjectCN, cert.IssuerCN, cert.NotBefore, cert.NotAfter)
+					t.Logf("Chain: %d certificates", len(r.Certs))
+				}
+
+				// Verify all expected fields are populated
+				if r.Connection == nil {
+					t.Error("Connection info is missing")
+				}
+				if r.Verification == nil {
+					t.Error("Verification info is missing")
+				}
+				if len(r.Certs) == 0 {
+					t.Error("Certificate chain is empty")
+				}
+			} else {
+				// Failed request
+				if cert, ok := j.Unpack().(job.Cert); ok {
+					t.Logf("Cert check failed for: %s (Status: %d)", cert.Host, cert.Status)
+				} else {
+					t.Logf("Cert check failed for: %s", j.Request())
 				}
 			}
 		}
