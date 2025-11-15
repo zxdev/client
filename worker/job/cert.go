@@ -137,7 +137,7 @@ type VerificationInfo struct {
 	// Optional/expensive checks (only populated if requested via CertOptions)
 	OCSPChecked          bool   `json:"ocsp_checked,omitempty"`            // true if OCSP check was attempted (requires include_ocsp option)
 	OCSPStatus           string `json:"ocsp_status,omitempty"`             // "good" | "revoked" | "unknown" | "error" | "" (requires include_ocsp option)
-	RootInDisallowedList bool   `json:"root_in_disallowed_list,omitempty"` // true if root CA is in disallowed list (requires include_disallowed_root option)
+	RootInDisallowedList *bool  `json:"root_in_disallowed_list,omitempty"` // nil = check not run, true = root is disallowed, false = root is not disallowed (requires include_disallowed_root option)
 }
 
 // CertificateInfo contains details for a single certificate in the chain
