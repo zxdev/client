@@ -151,7 +151,8 @@ type CertificateInfo struct {
 	NotAfter           string   `json:"not_after,omitempty"`            // RFC3339
 	PublicKeyAlgorithm string   `json:"public_key_algorithm,omitempty"` // e.g., "RSA", "ECDSA"
 	PublicKeySizeBits  int      `json:"public_key_size_bits,omitempty"` // key size in bits
+	CurveName          string   `json:"curve_name,omitempty"`           // elliptic curve name for EC-based keys (e.g., "secp256r1", "secp384r1", "x25519")
 	SignatureAlgorithm string   `json:"signature_algorithm,omitempty"`  // e.g., "SHA256-RSA"
-	IsCA               bool     `json:"is_ca,omitempty"`                // true if this is a CA certificate
+	IsCA               bool     `json:"is_ca,omitempty"`                // true if this is a CA certificate (leaf should be false)
 	SerialNumber       string   `json:"serial_number,omitempty"`        // certificate serial number
 }
