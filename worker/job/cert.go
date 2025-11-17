@@ -38,6 +38,10 @@ package job
 //     "ocsp_status": "good",
 //     "root_in_disallowed_list": false
 //   },
+//   "revocation": {
+//     "checked_at": "2025-01-15T10:30:05Z",
+//     "revoked": false
+//   },
 //   "certs": [
 //     {
 //       "position": 0,
@@ -45,20 +49,30 @@ package job
 //       "subject_cn": "example.com",
 //       "subject_dns_names": ["example.com", "www.example.com"],
 //       "issuer_cn": "R3",
+//       "issuer_dn": "CN=R3, O=Let's Encrypt, C=US",
+//       "issuer_friendly_name": "Let's Encrypt",
 //       "not_before": "2025-10-01T00:00:00Z",
 //       "not_after": "2026-01-01T00:00:00Z",
 //       "public_key_algorithm": "RSA",
 //       "public_key_size_bits": 2048,
 //       "signature_algorithm": "SHA256-RSA",
 //       "is_ca": false,
-//       "serial_number": "..."
+//       "serial_number": "...",
+//       "cert_sha256": "abc123...",
+//       "pubkey_sha256": "def456...",
+//       "tbs_sha256": "ghi789...",
+//       "issuer_pubkey_sha256": "jkl012..."
 //     },
 //     {
 //       "position": 1,
 //       "role": "intermediate",
 //       "subject_cn": "R3",
 //       "issuer_cn": "ISRG Root X1",
-//       "is_ca": true
+//       "issuer_dn": "CN=ISRG Root X1, O=Internet Security Research Group, C=US",
+//       "issuer_friendly_name": "Internet Security Research Group",
+//       "is_ca": true,
+//       "cert_sha256": "...",
+//       "pubkey_sha256": "..."
 //     }
 //   ]
 // }
@@ -103,6 +117,7 @@ type Cert struct {
 	Connection   *ConnectionInfo   `json:"connection,omitempty"`   // TLS connection details
 	Verification *VerificationInfo `json:"verification,omitempty"` // certificate verification metadata
 	Certs        []CertificateInfo `json:"certs,omitempty"`        // certificate chain (leaf + intermediates)
+	Revocation   *RevocationInfo   `json:"revocation,omitempty"`   // detailed revocation information (only when include_ocsp option is enabled)
 }
 
 func (j *Cert) Okay() bool      { return j.Status == 0 }
@@ -140,6 +155,14 @@ type VerificationInfo struct {
 	RootInDisallowedList *bool  `json:"root_in_disallowed_list,omitempty"` // nil = check not run, true = root is disallowed, false = root is not disallowed (requires include_disallowed_root option)
 }
 
+// RevocationInfo contains detailed revocation information from OCSP
+type RevocationInfo struct {
+	CheckedAt string `json:"checked_at,omitempty"` // RFC3339 timestamp when revocation was checked
+	Revoked   bool   `json:"revoked,omitempty"`    // true if certificate is revoked
+	Reason    string `json:"reason,omitempty"`     // revocation reason code (e.g., "keyCompromise", "CACompromise", "affiliationChanged")
+	Time      string `json:"time,omitempty"`       // RFC3339 timestamp when certificate was revoked (only if revoked)
+}
+
 // CertificateInfo contains details for a single certificate in the chain
 type CertificateInfo struct {
 	Position           int      `json:"position,omitempty"`             // position in chain (0 = leaf)
@@ -147,6 +170,8 @@ type CertificateInfo struct {
 	SubjectCN          string   `json:"subject_cn,omitempty"`           // subject common name
 	SubjectDNSNames    []string `json:"subject_dns_names,omitempty"`    // subject alternative names
 	IssuerCN           string   `json:"issuer_cn,omitempty"`            // issuer common name
+	IssuerDN           string   `json:"issuer_dn,omitempty"`            // full issuer Distinguished Name (DN)
+	IssuerFriendlyName string   `json:"issuer_friendly_name,omitempty"` // human-readable CA name (typically from Organization field)
 	NotBefore          string   `json:"not_before,omitempty"`           // RFC3339
 	NotAfter           string   `json:"not_after,omitempty"`            // RFC3339
 	PublicKeyAlgorithm string   `json:"public_key_algorithm,omitempty"` // e.g., "RSA", "ECDSA"
@@ -155,4 +180,8 @@ type CertificateInfo struct {
 	SignatureAlgorithm string   `json:"signature_algorithm,omitempty"`  // e.g., "SHA256-RSA"
 	IsCA               bool     `json:"is_ca,omitempty"`                // true if this is a CA certificate (leaf should be false)
 	SerialNumber       string   `json:"serial_number,omitempty"`        // certificate serial number
+	CertSHA256         string   `json:"cert_sha256,omitempty"`          // SHA-256 hash of entire certificate (DER)
+	PubkeySHA256       string   `json:"pubkey_sha256,omitempty"`        // SHA-256 hash of public key
+	TbsSHA256          string   `json:"tbs_sha256,omitempty"`           // SHA-256 hash of "to be signed" portion
+	IssuerPubkeySHA256 string   `json:"issuer_pubkey_sha256,omitempty"` // SHA-256 hash of issuer's public key (only for non-root certs)
 }
