@@ -100,10 +100,11 @@ type CertJob struct {
 
 // CertOptions controls which expensive/optional checks are performed
 // All basic checks (connection info, chain, hostname, weak crypto, etc.) are always included.
-// Only OCSP and disallowed root checks are optional and require explicit opt-in.
+// Only OCSP, disallowed root, and CRLite checks are optional and require explicit opt-in.
 type CertOptions struct {
 	IncludeOCSP           bool `json:"include_ocsp,omitempty"`            // perform OCSP revocation check (network call)
 	IncludeDisallowedRoot bool `json:"include_disallowed_root,omitempty"` // check root CA against disallowed list (file load)
+	IncludeCRLite         bool `json:"include_crlite,omitempty"`          // check certificate against CRLite revocation filter (fast, offline)
 }
 
 // Cert is the worker cert struct for TLS handshake and certificate analysis
@@ -153,6 +154,10 @@ type VerificationInfo struct {
 	OCSPChecked          bool   `json:"ocsp_checked,omitempty"`            // true if OCSP check was attempted (requires include_ocsp option)
 	OCSPStatus           string `json:"ocsp_status,omitempty"`             // "good" | "revoked" | "unknown" | "error" | "" (requires include_ocsp option)
 	RootInDisallowedList *bool  `json:"root_in_disallowed_list,omitempty"` // nil = check not run, true = root is disallowed, false = root is not disallowed (requires include_disallowed_root option)
+	CRLiteChecked        bool   `json:"crlite_checked,omitempty"`          // true if CRLite check was performed (requires include_crlite option)
+	CRLiteRevoked        bool   `json:"crlite_revoked,omitempty"`          // true if certificate is revoked according to CRLite
+	CRLiteSource         string `json:"crlite_source,omitempty"`           // source of CRLite data (e.g., "mozilla-crlite")
+	CRLiteVersion        string `json:"crlite_version,omitempty"`          // version/date of CRLite filter (e.g., "2025-11-15")
 }
 
 // RevocationInfo contains detailed revocation information from OCSP
