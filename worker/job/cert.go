@@ -189,4 +189,5 @@ type CertificateInfo struct {
 	PubkeySHA256       string   `json:"pubkey_sha256,omitempty"`        // SHA-256 hash of public key
 	TbsSHA256          string   `json:"tbs_sha256,omitempty"`           // SHA-256 hash of "to be signed" portion
 	IssuerPubkeySHA256 string   `json:"issuer_pubkey_sha256,omitempty"` // SHA-256 hash of issuer's public key (only for non-root certs)
+	DerBase64          string   `json:"der_base64,omitempty"`           // base64-encoded DER representation of the certificate
 }
